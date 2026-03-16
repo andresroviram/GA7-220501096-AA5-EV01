@@ -1,4 +1,5 @@
 import { IsString, IsNotEmpty, MinLength, MaxLength } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 
 /**
  * LoginDto — Data Transfer Object para la petición POST /auth/login.
@@ -8,6 +9,7 @@ import { IsString, IsNotEmpty, MinLength, MaxLength } from 'class-validator';
  */
 export class LoginDto {
     /** Nombre de usuario — requerido, solo texto */
+    @ApiProperty({ example: 'admin', description: 'Nombre de usuario registrado en la base de datos', maxLength: 50 })
     @IsString({ message: 'El usuario debe ser texto' })
     @IsNotEmpty({ message: 'El nombre de usuario es requerido' })
     @MaxLength(50, { message: 'El usuario no puede superar 50 caracteres' })
@@ -18,6 +20,7 @@ export class LoginDto {
      * No se valida complejidad aquí; eso corresponde al módulo de registro
      * (fuera del alcance de esta evidencia).
      */
+    @ApiProperty({ example: 'Admin123!', description: 'Contraseña del usuario (mínimo 6 caracteres)', minLength: 6 })
     @IsString({ message: 'La contraseña debe ser texto' })
     @IsNotEmpty({ message: 'La contraseña es requerida' })
     @MinLength(6, { message: 'La contraseña debe tener al menos 6 caracteres' })

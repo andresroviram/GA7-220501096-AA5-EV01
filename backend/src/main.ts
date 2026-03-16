@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 
 /**
@@ -23,9 +24,26 @@ async function bootstrap() {
         }),
     );
 
+    // Configuración de Swagger UI
+    // Disponible en http://localhost:<port>/api
+    const swaggerConfig = new DocumentBuilder()
+        .setTitle('Login Service API')
+        .setDescription('API de inicio de sesión — GA7-220501096-AA5-EV01')
+        .setVersion('1.0')
+        .addBearerAuth(
+            { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+            'access-token', // nombre del esquema para referenciar con @ApiBearerAuth()
+        )
+        .build();
+
+    const document = SwaggerModule.createDocument(app, swaggerConfig);
+    // Monta la UI en /api
+    SwaggerModule.setup('api', app, document);
+
     const port = process.env.PORT ?? 3000;
     await app.listen(port);
     console.log(`Servidor de autenticación ejecutándose en http://localhost:${port}`);
+    console.log(`Swagger UI disponible en http://localhost:${port}/api`);
 }
 
 bootstrap();

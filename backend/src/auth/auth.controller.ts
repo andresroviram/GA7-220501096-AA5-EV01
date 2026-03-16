@@ -5,6 +5,7 @@ import {
     HttpCode,
     HttpStatus,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 
@@ -14,6 +15,8 @@ import { LoginDto } from './dto/login.dto';
  * Rutas disponibles:
  *   POST /auth/login  →  Inicio de sesión con usuario y contraseña
  */
+/** Agrupa los endpoints de autenticación bajo la etiqueta "auth" en Swagger */
+@ApiTags('auth')
 @Controller('auth')
 export class AuthController {
     constructor(private readonly authService: AuthService) { }
@@ -33,6 +36,11 @@ export class AuthController {
      */
     @Post('login')
     @HttpCode(HttpStatus.OK)
+    @ApiOperation({ summary: 'Iniciar sesión', description: 'Valida usuario y contraseña contra la base de datos y retorna un token JWT.' })
+    @ApiBody({ type: LoginDto })
+    @ApiResponse({ status: 200, description: 'Login exitoso — retorna el token JWT.', schema: { example: { access_token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...', username: 'admin' } } })
+    @ApiResponse({ status: 401, description: 'Credenciales inválidas.' })
+    @ApiResponse({ status: 400, description: 'Datos de entrada inválidos.' })
     async login(@Body() loginDto: LoginDto) {
         return this.authService.login(loginDto);
     }
