@@ -1,139 +1,175 @@
 import React, { useState } from 'react';
 import authService from '../services/authService';
 
-/**
- * LoginForm — componente de formulario de inicio de sesión.
- *
- * Responsabilidades:
- *  - Renderizar los campos de usuario y contraseña.
- *  - Validar que los campos no estén vacíos antes de enviar.
- *  - Llamar a authService.login() y manejar el resultado.
- *  - Mostrar mensajes de error claros al usuario.
- *  - Notificar al componente padre cuando el login es exitoso.
- *
- * @param {Function} onLoginSuccess - Callback invocado tras un login exitoso
- */
-function LoginForm({ onLoginSuccess }) {
-  // Estado del formulario
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError]       = useState('');
-  const [loading, setLoading]   = useState(false);
+function LoginForm({ onLoginSuccess, onShowRegister }) {
+  const [username, setUsername]         = useState('');
+  const [password, setPassword]         = useState('');
+  const [remember, setRemember]         = useState(false);
+  const [fieldErrors, setFieldErrors]   = useState({});
+  const [generalError, setGeneralError] = useState('');
+  const [loading, setLoading]           = useState(false);
 
-  /**
-   * Maneja el envío del formulario.
-   * Previene el comportamiento nativo del navegador, valida los campos
-   * y delega la autenticación al servicio.
-   *
-   * @param {React.FormEvent} e - Evento submit del formulario
-   */
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setFieldErrors({});
+    setGeneralError('');
 
-    // Validación en el cliente: evita peticiones innecesarias al servidor
-    if (!username.trim() || !password.trim()) {
-      setError('Por favor, complete todos los campos.');
-      return;
-    }
+    const errors = {};
+    if (!username.trim()) errors.username = 'El correo es requerido.';
+    if (!password.trim()) errors.password = 'La contraseña es requerida.';
+    if (Object.keys(errors).length > 0) { setFieldErrors(errors); return; }
 
     setLoading(true);
-
     try {
-      // Llamar al servicio de autenticación
       await authService.login(username, password);
-
-      // Notificar éxito al componente padre (App.jsx)
       onLoginSuccess();
     } catch (err) {
-      // Interpretar el código HTTP del error para mostrar un mensaje adecuado
       if (err.response?.status === 401) {
-        setError('Usuario o contraseña incorrectos.');
+        setFieldErrors({ password: 'Contraseña incorrecta' });
       } else if (err.response?.status === 400) {
-        setError('Datos de entrada inválidos. Revisa los campos.');
+        setGeneralError('Datos inválidos. Revisa los campos.');
       } else {
-        setError('Error de conexión. Verifica que el servidor esté activo.');
+        setGeneralError('Error de conexión. Verifica que el servidor esté activo.');
       }
     } finally {
-      // Siempre restaurar el estado de carga, haya o no error
       setLoading(false);
     }
   };
 
   return (
-    <div className="login-wrapper">
-      <div className="login-card">
+    <div className="login-page">
 
-        {/* Encabezado */}
-        <div className="login-header">
-          <div className="login-icon" aria-hidden="true">🔐</div>
-          <h1 className="login-title">Iniciar Sesión</h1>
-          <p className="login-subtitle">GA7-220501096-AA5-EV01</p>
+      {/* ── Panel izquierdo: marca ─────────────────────────── */}
+      <div className="login-left" aria-hidden="true">
+        <div className="login-brand-circle">
+          <span className="login-brand-text">Sistema<br/>Integral</span>
         </div>
+      </div>
 
-        {/* Formulario principal */}
-        <form onSubmit={handleSubmit} noValidate>
+      {/* ── Panel derecho: formulario ──────────────────────── */}
+      <div className="login-right">
+        {/* Círculo decorativo superior derecho */}
+        <div className="login-deco login-deco--top" aria-hidden="true" />
+        {/* Círculo decorativo inferior derecho */}
+        <div className="login-deco login-deco--bottom" aria-hidden="true" />
 
-          {/* Campo: nombre de usuario */}
-          <div className="form-group">
-            <label htmlFor="username" className="form-label">
-              Usuario
-            </label>
-            <input
-              type="text"
-              id="username"
-              className="form-input"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Ingresa tu usuario"
-              disabled={loading}
-              autoComplete="username"
-              autoFocus
-            />
-          </div>
+        <div className="login-form-container">
+          <h1 className="login-title">Accede a tu cuenta</h1>
+          <p className="login-subtitle">¡Bienvenido! Por favor, ingresa tus datos.</p>
 
-          {/* Campo: contraseña */}
-          <div className="form-group">
-            <label htmlFor="password" className="form-label">
-              Contraseña
-            </label>
-            <input
-              type="password"
-              id="password"
-              className="form-input"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Ingresa tu contraseña"
-              disabled={loading}
-              autoComplete="current-password"
-            />
-          </div>
+          <form onSubmit={handleSubmit} noValidate>
 
-          {/* Mensaje de error — visible solo cuando hay un error */}
-          {error && (
-            <div className="error-alert" role="alert">
-              <span className="error-icon" aria-hidden="true">⚠️</span>
-              {error}
+            {/* Correo */}
+            <div className="form-group">
+              <label htmlFor="username" className="form-label">Correo Electrónico</label>
+              <div className="input-wrapper">
+                <span className="input-icon" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                    <polyline points="22,6 12,13 2,6"/>
+                  </svg>
+                </span>
+                <input
+                  type="text"
+                  id="username"
+                  className={`form-input${fieldErrors.username ? ' form-input--error' : ''}`}
+                  value={username}
+                  onChange={(e) => { setUsername(e.target.value); setFieldErrors((p) => ({ ...p, username: '' })); }}
+                  placeholder="johndoe@gmail.com"
+                  disabled={loading}
+                  autoComplete="username"
+                  autoFocus
+                />
+                {fieldErrors.username && (
+                  <span className="input-error-icon" aria-hidden="true">!</span>
+                )}
+              </div>
             </div>
-          )}
 
-          {/* Botón de envío */}
-          <button
-            type="submit"
-            className="login-button"
-            disabled={loading}
-          >
-            {loading ? (
-              <span className="loading-text">
-                <span className="spinner" aria-hidden="true" />
-                Verificando...
-              </span>
-            ) : (
-              'Ingresar'
+            {/* Contraseña */}
+            <div className="form-group">
+              <label htmlFor="password" className="form-label">Contraseña</label>
+              <div className="input-wrapper">
+                <span className="input-icon" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                  </svg>
+                </span>
+                <input
+                  type="password"
+                  id="password"
+                  className={`form-input${fieldErrors.password ? ' form-input--error' : ''}`}
+                  value={password}
+                  onChange={(e) => { setPassword(e.target.value); setFieldErrors((p) => ({ ...p, password: '' })); }}
+                  placeholder="ingresar contraseña"
+                  disabled={loading}
+                  autoComplete="current-password"
+                />
+                {fieldErrors.password && (
+                  <span className="input-error-icon" aria-hidden="true">!</span>
+                )}
+              </div>
+              {fieldErrors.password && (
+                <p className="field-error-msg" role="alert">{fieldErrors.password}</p>
+              )}
+            </div>
+
+            {/* Opciones extra */}
+            <div className="login-options">
+              <label className="login-remember">
+                <input
+                  type="checkbox"
+                  checked={remember}
+                  onChange={(e) => setRemember(e.target.checked)}
+                  disabled={loading}
+                />
+                <span>Recordar por 30 días</span>
+              </label>
+              <button type="button" className="login-forgot">Olvidé mi contraseña</button>
+            </div>
+
+            {/* Error general (conexión / 400) */}
+            {generalError && (
+              <div className="error-alert" role="alert">
+                <span aria-hidden="true">⚠️</span> {generalError}
+              </div>
             )}
-          </button>
-        </form>
 
+            {/* Botón principal — Iniciar sesión */}
+            <button
+              type="submit"
+              className="login-button login-button--primary"
+              disabled={loading}
+            >
+              {loading ? (
+                <span className="loading-text">
+                  <span className="spinner" aria-hidden="true" />
+                  Verificando...
+                </span>
+              ) : (
+                'Iniciar Sesión'
+              )}
+            </button>
+
+            {/* Botón secundario — Registrarse */}
+            <button
+              type="button"
+              className="login-button login-button--secondary"
+              disabled={loading}
+              onClick={onShowRegister}
+            >
+              Registrarme
+            </button>
+
+          </form>
+
+          {/* Punto decorativo */}
+          <div className="login-dot" aria-hidden="true" />
+
+          {/* Versión */}
+          <p className="login-version">v 1.0.0</p>
+        </div>
       </div>
     </div>
   );

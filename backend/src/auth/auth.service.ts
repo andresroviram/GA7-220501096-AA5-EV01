@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
+import { RegisterDto } from './dto/register.dto';
 
 /**
  * AuthService — lógica de negocio del módulo de autenticación.
@@ -54,5 +55,13 @@ export class AuthService {
             access_token: this.jwtService.sign(payload),
             username: user.username,
         };
+    }
+
+    /**
+     * Registra un nuevo usuario y devuelve sus datos (sin contraseña).
+     */
+    async register(registerDto: RegisterDto) {
+        const { username, password, fullName, identification, birthDate } = registerDto;
+        return this.usersService.createUser(username, password, fullName, identification, birthDate);
     }
 }

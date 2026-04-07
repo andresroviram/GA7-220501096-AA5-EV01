@@ -1,43 +1,68 @@
 import React, { useState } from 'react';
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+} from 'react-router-dom';
 import LoginForm from './components/LoginForm';
+import RegisterForm from './components/RegisterForm';
+import MainLayout from './layouts/MainLayout';
 import Dashboard from './pages/Dashboard';
+import Docentes from './pages/Docentes';
+import Calificaciones from './pages/Calificaciones';
+import Estudiantes from './pages/Estudiantes';
+import GruposHorarios from './pages/GruposHorarios';
+import Materias from './pages/Materias';
+import Reportes from './pages/Reportes';
+import Configuraciones from './pages/Configuraciones';
 import authService from './services/authService';
 
-/**
- * App — componente raíz de la aplicación.
- *
- * Gestiona el estado global de autenticación:
- *  - Si el usuario está autenticado (hay token en localStorage) → muestra el Dashboard.
- *  - Si no → muestra el formulario de login.
- *
- * No usa react-router-dom intencionalmente: el módulo solicitado es solo login,
- * por lo que el enrutamiento basado en estado es suficiente y más simple.
- */
 function App() {
-  /**
-   * Estado de autenticación inicializado desde localStorage.
-   * Esto permite que, al recargar la página, el usuario siga "logueado"
-   * si su token aún está guardado.
-   */
   const [isAuthenticated, setIsAuthenticated] = useState(
     authService.isAuthenticated(),
   );
+  const [view, setView] = useState('login'); // 'login' | 'register'
 
-  /** Callback pasado a LoginForm: se activa cuando el login es exitoso */
-  const handleLoginSuccess = () => {
-    setIsAuthenticated(true);
-  };
+  const handleLoginSuccess = () => setIsAuthenticated(true);
+  const handleLogout       = () => setIsAuthenticated(false);
 
-  /** Callback pasado a Dashboard: se activa cuando el usuario cierra sesión */
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-  };
+  if (!isAuthenticated) {
+    if (view === 'register') {
+      return (
+        <RegisterForm
+          onBackToLogin={() => setView('login')}
+          onRegisterSuccess={() => setView('login')}
+        />
+      );
+    }
+    return (
+      <LoginForm
+        onLoginSuccess={handleLoginSuccess}
+        onShowRegister={() => setView('register')}
+      />
+    );
+  }
 
-  // Renderizado condicional basado en el estado de autenticación
-  return isAuthenticated ? (
-    <Dashboard onLogout={handleLogout} />
-  ) : (
-    <LoginForm onLoginSuccess={handleLoginSuccess} />
+  return (
+    <BrowserRouter>
+      <Routes>
+        {/* Layout principal con sidebar y topbar */}
+        <Route element={<MainLayout onLogout={handleLogout} />}>
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard"       element={<Dashboard />} />
+          <Route path="/estudiantes"     element={<Estudiantes />} />
+          <Route path="/docentes"        element={<Docentes />} />
+          <Route path="/grupos"          element={<GruposHorarios />} />
+          <Route path="/materias"        element={<Materias />} />
+          <Route path="/calificaciones"  element={<Calificaciones />} />
+          <Route path="/reportes"        element={<Reportes />} />
+          <Route path="/configuraciones" element={<Configuraciones />} />
+          {/* Cualquier ruta desconocida redirige al dashboard */}
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
   );
 }
 

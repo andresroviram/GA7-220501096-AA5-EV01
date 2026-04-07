@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleInit, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
@@ -61,5 +61,41 @@ export class UsersService implements OnModuleInit {
         return this.usersRepository.findOne({
             where: { username, isActive: true },
         });
+    }
+
+    /**
+     * Crea un nuevo usuario en la base de datos.
+     * Lanza ConflictException si el username ya existe.
+     *
+     * @param username    - Correo/usuario único
+     * @param password    - Contraseña en texto plano (se hashea aquí)
+     * @param fullName    - Nombre completo
+     * @param identification - Número de identificación
+     * @param birthDate   - Fecha de nacimiento ISO
+     */
+    async createUser(
+        username: string,
+        password: string,
+        fullName: string,
+        identification: string,
+        birthDate: string,
+    ): Promise<Omit<User, 'password'>> {
+        const existing = await this.usersRepository.findOne({ where: { username } });
+        if (existing) {
+            throw new ConflictException('El correo ya está registrado');
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        const user = this.usersRepository.create({
+            username,
+            password: hashedPassword,
+        });
+
+        const saved = await this.usersRepository.save(user);
+
+        // No retornar el hash de la contraseña
+        const { password: _pwd, ...result } = saved;
+        return result;
     }
 }

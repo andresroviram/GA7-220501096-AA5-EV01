@@ -8,6 +8,7 @@ import {
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
+import { RegisterDto } from './dto/register.dto';
 
 /**
  * AuthController — expone los endpoints HTTP del módulo de autenticación.
@@ -43,5 +44,21 @@ export class AuthController {
     @ApiResponse({ status: 400, description: 'Datos de entrada inválidos.' })
     async login(@Body() loginDto: LoginDto) {
         return this.authService.login(loginDto);
+    }
+
+    /**
+     * POST /auth/register
+     * Crea una nueva cuenta de usuario.
+     * Responde 201 con los datos del usuario creado (sin contraseña).
+     * Responde 409 si el correo ya está registrado.
+     */
+    @Post('register')
+    @ApiOperation({ summary: 'Registrar usuario', description: 'Crea una nueva cuenta con los datos del formulario de registro.' })
+    @ApiBody({ type: RegisterDto })
+    @ApiResponse({ status: 201, description: 'Usuario creado exitosamente.' })
+    @ApiResponse({ status: 409, description: 'El correo ya está registrado.' })
+    @ApiResponse({ status: 400, description: 'Datos de entrada inválidos.' })
+    async register(@Body() registerDto: RegisterDto) {
+        return this.authService.register(registerDto);
     }
 }

@@ -1,59 +1,34 @@
 import React from 'react';
-import authService from '../services/authService';
+import StatCard from '../components/StatCard';
+import TopStudents from '../components/TopStudents';
+import GroupAverageChart from '../components/GroupAverageChart';
+import AcademicPerformanceChart from '../components/AcademicPerformanceChart';
+import GradeDistributionChart from '../components/GradeDistributionChart';
+import { stats } from '../data/mockDashboard';
 
-/**
- * Dashboard — página que se muestra tras un inicio de sesión exitoso.
- *
- * Confirma visualmente que la autenticación fue correcta y
- * ofrece la opción de cerrar sesión, que limpia el token del localStorage
- * y devuelve al usuario al formulario de login.
- *
- * @param {Function} onLogout - Callback invocado cuando el usuario cierra sesión
- */
-function Dashboard({ onLogout }) {
-  // Obtener el nombre del usuario desde localStorage
-  const username = authService.getCurrentUser();
-
-  /**
-   * Cierra la sesión: elimina el token y notifica a App.jsx
-   * para que vuelva a renderizar el formulario de login.
-   */
-  const handleLogout = () => {
-    authService.logout();
-    onLogout();
-  };
-
+function Dashboard() {
   return (
-    <div className="dashboard-wrapper">
-      <div className="dashboard-card">
+    <div className="dashboard">
 
-        {/* Ícono de bienvenida */}
-        <div className="dashboard-icon" aria-hidden="true">✅</div>
-
-        {/* Mensaje de bienvenida personalizado */}
-        <h1 className="dashboard-title">
-          ¡Bienvenido, <span className="username-highlight">{username}</span>!
-        </h1>
-
-        <p className="dashboard-message">
-          Has iniciado sesión correctamente en el sistema.
-        </p>
-
-        {/* Información de la evidencia */}
-        <div className="dashboard-info-box">
-          <p className="dashboard-info-label">Módulo activo</p>
-          <p className="dashboard-info-value">Inicio de Sesión — GA7-220501096-AA5-EV01</p>
-        </div>
-
-        {/* Botón de cierre de sesión */}
-        <button
-          onClick={handleLogout}
-          className="logout-button"
-        >
-          Cerrar Sesión
-        </button>
-
+      {/* ── Fila de Stats ─────────────────────────────────── */}
+      <div className="stats-grid">
+        {stats.map((s) => (
+          <StatCard key={s.id} label={s.label} value={s.value} icon={s.icon} />
+        ))}
       </div>
+
+      {/* ── Fila central: Top Alumnos + Promedio por Grupo ── */}
+      <div className="widgets-row">
+        <TopStudents />
+        <GroupAverageChart />
+      </div>
+
+      {/* ── Fila inferior: Rendimiento + Distribución ──────── */}
+      <div className="widgets-row">
+        <AcademicPerformanceChart />
+        <GradeDistributionChart />
+      </div>
+
     </div>
   );
 }

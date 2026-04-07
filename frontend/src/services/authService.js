@@ -76,6 +76,15 @@ const authService = {
   getToken() {
     return localStorage.getItem('token');
   },
+
+  /**
+   * Registra un nuevo usuario mediante POST /auth/register.
+   * @param {object} data - { fullName, username, identification, birthDate, password }
+   */
+  async register(data) {
+    const response = await axios.post(`${AUTH_API_URL}/register`, data);
+    return response.data;
+  },
 };
 
 export default authService;

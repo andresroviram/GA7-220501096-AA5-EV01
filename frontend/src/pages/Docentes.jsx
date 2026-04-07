@@ -1,0 +1,529 @@
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import {
+  docentes as initialDocentes,
+  docentesPorDepartamento,
+  estadisticasDocentes,
+  departamentos,
+  estados,
+  materias as MATERIAS_LIST,
+} from '../data/mockDocentes';
+
+/* ─── Íconos SVG inline ─────────────────────────────────────────────────────── */
+const IconEdit = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+  </svg>
+);
+
+const IconRemove = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+    <circle cx="9" cy="7" r="4"/>
+    <line x1="23" y1="11" x2="17" y2="11"/>
+  </svg>
+);
+
+const IconSearch = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+  </svg>
+);
+
+const IconExport = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+    <polyline points="7 10 12 15 17 10"/>
+    <line x1="12" y1="15" x2="12" y2="3"/>
+  </svg>
+);
+
+const IconPlus = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+  </svg>
+);
+
+const IconChevron = ({ open }) => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+    style={{ transition: 'transform 0.2s', transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+    <polyline points="6 9 12 15 18 9" />
+  </svg>
+);
+
+const IconClose = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+  </svg>
+);
+
+/* ─── MultiSelect ────────────────────────────────────────────────────────────── */
+function MultiSelect({ options, selected, onChange, placeholder }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    function handleClick(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  const toggle = (item) => {
+    if (selected.includes(item)) onChange(selected.filter((s) => s !== item));
+    else onChange([...selected, item]);
+  };
+
+  return (
+    <div className="multiselect" ref={ref}>
+      <button
+        type="button"
+        className={`multiselect-trigger${open ? ' multiselect-trigger--open' : ''}`}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span className="multiselect-placeholder">{placeholder}</span>
+        <IconChevron open={open} />
+      </button>
+      {open && (
+        <div className="multiselect-dropdown">
+          {options.map((opt) => (
+            <div
+              key={opt}
+              className={`multiselect-option${selected.includes(opt) ? ' multiselect-option--selected' : ''}`}
+              onClick={() => toggle(opt)}
+            >
+              {opt}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── ModalConfirm ───────────────────────────────────────────────────────────── */
+function ModalConfirm({ docente, onConfirm, onCancel }) {
+  const esActivo = docente.estado === 'Activo';
+  return (
+    <div className="modal-overlay" onClick={onCancel}>
+      <div className="modal-confirm" onClick={(e) => e.stopPropagation()}>
+        <h3 className="modal-confirm-title">Confirmar Cambio de Estado</h3>
+        <p className="modal-confirm-msg">
+          {esActivo ? (
+            <>
+              ¿Está seguro que desea dar de baja al docente{' '}
+              <strong>{docente.nombre}</strong>? Esta acción marcará al docente como inactivo en el sistema.
+            </>
+          ) : (
+            <>
+              ¿Está seguro que desea reactivar al docente{' '}
+              <strong>{docente.nombre}</strong>?
+            </>
+          )}
+        </p>
+        <div className="modal-confirm-actions">
+          <button className="btn btn--outline" onClick={onCancel}>Cancelar</button>
+          <button
+            className={`btn ${esActivo ? 'btn--danger' : 'btn--primary'}`}
+            onClick={() => onConfirm(docente)}
+          >
+            {esActivo ? 'Dar de Baja' : 'Reactivar'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── ModalDocente ───────────────────────────────────────────────────────────── */
+function ModalDocente({ docente, onSave, onCancel }) {
+  const isEdit = !!docente;
+  const [form, setForm] = useState({
+    nombre:       docente?.nombre       || '',
+    cedula:       docente?.cedula       || '',
+    email:        docente?.email        || '',
+    telefono:     docente?.telefono     || '',
+    departamento: docente?.departamento || '',
+    fechaIngreso: docente?.fechaIngreso || '',
+    materias:     docente?.materias     || [],
+  });
+
+  const set = (field, value) => setForm((f) => ({ ...f, [field]: value }));
+
+  return (
+    <div className="modal-overlay" onClick={onCancel}>
+      <div className="modal-form" onClick={(e) => e.stopPropagation()}>
+
+        {/* Cabecera */}
+        <div className="modal-form-header">
+          <h2 className="modal-form-title">
+            {isEdit ? 'Editar información del Docente' : 'Registrar Nuevo Docente'}
+          </h2>
+          <button type="button" className="modal-close" onClick={onCancel}>
+            <IconClose />
+          </button>
+        </div>
+
+        {/* Campos */}
+        <div className="modal-form-body">
+          <div className="modal-grid">
+
+            <div className="modal-field">
+              <label className="modal-label">Nombre Completo</label>
+              <input
+                className="modal-input"
+                value={form.nombre}
+                onChange={(e) => set('nombre', e.target.value)}
+                placeholder="Dr. Juan Pérez"
+              />
+            </div>
+
+            <div className="modal-field">
+              <label className="modal-label">Cédula Profesional</label>
+              <input
+                className="modal-input"
+                value={form.cedula}
+                onChange={(e) => set('cedula', e.target.value)}
+                placeholder="123456789"
+              />
+            </div>
+
+            <div className="modal-field">
+              <label className="modal-label">Email</label>
+              <input
+                className="modal-input"
+                type="email"
+                value={form.email}
+                onChange={(e) => set('email', e.target.value)}
+                placeholder="juan.perez@escuela.edu"
+              />
+            </div>
+
+            <div className="modal-field">
+              <label className="modal-label">Teléfono</label>
+              <input
+                className="modal-input"
+                value={form.telefono}
+                onChange={(e) => set('telefono', e.target.value)}
+                placeholder="+52 555-0101"
+              />
+            </div>
+
+            <div className="modal-field">
+              <label className="modal-label">Departamento</label>
+              <select
+                className="modal-select"
+                value={form.departamento}
+                onChange={(e) => set('departamento', e.target.value)}
+              >
+                <option value="">Seleccionar departamento</option>
+                {departamentos.map((d) => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="modal-field">
+              <label className="modal-label">Fecha de ingreso</label>
+              <input
+                className="modal-input"
+                type="date"
+                value={form.fechaIngreso}
+                onChange={(e) => set('fechaIngreso', e.target.value)}
+              />
+            </div>
+
+          </div>
+
+          {/* Materias — ancho completo */}
+          <div className="modal-field modal-field--full" style={{ marginTop: '1rem' }}>
+            <label className="modal-label">Materias que imparte</label>
+            <MultiSelect
+              options={MATERIAS_LIST}
+              selected={form.materias}
+              onChange={(v) => set('materias', v)}
+              placeholder="Seleccionar materias..."
+            />
+            <div className="materia-tags">
+              {form.materias.length === 0 ? (
+                <span className="no-materias">No hay materias seleccionadas</span>
+              ) : (
+                form.materias.map((m) => (
+                  <span key={m} className="materia-tag">
+                    {m}
+                    <button
+                      type="button"
+                      className="materia-tag-remove"
+                      onClick={() => set('materias', form.materias.filter((x) => x !== m))}
+                    >×</button>
+                  </span>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Pie */}
+        <div className="modal-form-footer">
+          <button className="btn btn--outline" onClick={onCancel}>Cancelar</button>
+          <button className="btn btn--primary" onClick={() => onSave(form)}>
+            {isEdit ? 'Actualizar' : 'Registrar'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Componente principal ──────────────────────────────────────────────────── */
+let nextId = initialDocentes.length + 1;
+
+function Docentes() {
+  const [lista,        setLista]        = useState(initialDocentes);
+  const [filtroDept,   setFiltroDept]   = useState('');
+  const [filtroEstado, setFiltroEstado] = useState('');
+  const [busqueda,     setBusqueda]     = useState({ dept: '', estado: '' });
+  const [modalConfirm, setModalConfirm] = useState(null); // docente a confirmar
+  const [modalForm,    setModalForm]    = useState(null); // null | { docente } para editar, o {} para crear
+
+  /* Aplicar filtros solo al hacer clic en Buscar */
+  const docentesFiltrados = useMemo(() => {
+    return lista.filter((d) => {
+      const matchDept   = !busqueda.dept   || d.departamento === busqueda.dept;
+      const matchEstado = !busqueda.estado || d.estado       === busqueda.estado;
+      return matchDept && matchEstado;
+    });
+  }, [lista, busqueda]);
+
+  const handleBuscar = () => setBusqueda({ dept: filtroDept, estado: filtroEstado });
+  const handleLimpiar = () => {
+    setFiltroDept('');
+    setFiltroEstado('');
+    setBusqueda({ dept: '', estado: '' });
+  };
+
+  /* Cambio de estado (confirmado) */
+  const handleConfirmStatus = (docente) => {
+    setLista((prev) =>
+      prev.map((d) =>
+        d.id === docente.id
+          ? { ...d, estado: d.estado === 'Activo' ? 'Inactivo' : 'Activo' }
+          : d
+      )
+    );
+    setModalConfirm(null);
+  };
+
+  /* Guardar docente (crear o editar) */
+  const handleSave = (form) => {
+    if (modalForm?.isCreate) {
+      setLista((prev) => [
+        ...prev,
+        { ...form, id: nextId++, estado: 'Activo' },
+      ]);
+    } else {
+      setLista((prev) =>
+        prev.map((d) =>
+          d.id === modalForm.docente.id ? { ...d, ...form } : d
+        )
+      );
+    }
+    setModalForm(null);
+  };
+
+  /* Máximo de docentes por dept para calcular el ancho de barra */
+  const maxDept = Math.max(...docentesPorDepartamento.map((d) => d.total));
+
+  return (
+    <div className="module-page">
+
+      {/* ── Modal confirmar cambio de estado ─────────────────────── */}
+      {modalConfirm && (
+        <ModalConfirm
+          docente={modalConfirm}
+          onConfirm={handleConfirmStatus}
+          onCancel={() => setModalConfirm(null)}
+        />
+      )}
+
+      {/* ── Modal registrar / editar docente ─────────────────────── */}
+      {modalForm && (
+        <ModalDocente
+          docente={modalForm.isCreate ? null : modalForm.docente}
+          onSave={handleSave}
+          onCancel={() => setModalForm(null)}
+        />
+      )}
+
+      {/* ── Filtros ──────────────────────────────────────────────── */}
+      <div className="filter-card">
+        <h3 className="filter-title">Filtros de Búsqueda</h3>
+        <div className="filter-row">
+
+          <div className="filter-field">
+            <label className="filter-label">Departamento</label>
+            <select
+              className="filter-select"
+              value={filtroDept}
+              onChange={(e) => setFiltroDept(e.target.value)}
+            >
+              <option value="">Seleccionar departamento</option>
+              {departamentos.map((d) => (
+                <option key={d} value={d}>{d}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="filter-field">
+            <label className="filter-label">Estado</label>
+            <select
+              className="filter-select"
+              value={filtroEstado}
+              onChange={(e) => setFiltroEstado(e.target.value)}
+            >
+              <option value="">Seleccionar estado</option>
+              {estados.map((e) => (
+                <option key={e} value={e}>{e}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="filter-actions">
+            <button className="btn btn--primary" onClick={handleBuscar}>
+              <IconSearch /> Buscar
+            </button>
+            <button className="btn btn--outline" onClick={handleLimpiar}>
+              Limpiar
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      {/* ── Tabla de docentes ──────────────────────────────────── */}
+      <div className="table-card">
+        <div className="table-header">
+          <h3 className="table-title">Personal Docente</h3>
+          <div className="table-header-actions">
+            <button className="btn btn--primary" onClick={() => setModalForm({ isCreate: true })}>
+              <IconPlus /> Registrar
+            </button>
+            <button className="btn btn--outline">
+              <IconExport /> Exportar
+            </button>
+          </div>
+        </div>
+
+        <div className="table-wrapper">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Nombre</th>
+                <th>Departamento</th>
+                <th>Contacto</th>
+                <th>Estado</th>
+                <th>Fecha ingreso</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {docentesFiltrados.map((d) => (
+                <tr key={d.id}>
+                  <td className="td-id">{d.id}</td>
+                  <td className="td-name">{d.nombre}</td>
+                  <td>{d.departamento}</td>
+                  <td className="td-contact">
+                    <span className="contact-email">✉ {d.email}</span>
+                    <span className="contact-phone">📞 {d.telefono}</span>
+                  </td>
+                  <td>
+                    <span className={`badge ${d.estado === 'Activo' ? 'badge--active' : 'badge--inactive'}`}>
+                      {d.estado === 'Activo' ? '✓' : '✕'} {d.estado}
+                    </span>
+                  </td>
+                  <td>{d.fechaIngreso}</td>
+                  <td className="td-actions">
+                    <button
+                      className="action-btn action-btn--edit"
+                      title="Editar"
+                      onClick={() => setModalForm({ docente: d })}
+                    >
+                      <IconEdit />
+                    </button>
+                    <button
+                      className="action-btn action-btn--remove"
+                      title={d.estado === 'Activo' ? 'Dar de baja' : 'Reactivar'}
+                      onClick={() => setModalConfirm(d)}
+                    >
+                      <IconRemove />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {docentesFiltrados.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="table-empty">No se encontraron docentes con los filtros seleccionados.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ── Widgets inferiores ─────────────────────────────────── */}
+      <div className="widgets-row">
+
+        {/* Docentes Activos por Departamento */}
+        <div className="widget-card">
+          <h3 className="widget-title">
+            <span aria-hidden="true">👥</span> Docentes Activos por Departamento
+          </h3>
+          <div className="dept-bar-list">
+            {docentesPorDepartamento.map((item) => (
+              <div key={item.departamento} className="dept-bar-row">
+                <span className="dept-bar-label">{item.departamento}</span>
+                <div className="dept-bar-track">
+                  <div
+                    className="dept-bar-fill"
+                    style={{ width: `${(item.total / maxDept) * 100}%` }}
+                  />
+                </div>
+                <span className="dept-bar-value">{item.total}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Estadísticas generales */}
+        <div className="widget-card">
+          <h3 className="widget-title">
+            <span aria-hidden="true">📊</span> Estadísticas generales
+          </h3>
+          <div className="stats-list">
+            <div className="stats-list-row">
+              <span className="stats-list-label">Total de Docentes</span>
+              <span className="stats-list-value stats-list-value--neutral">{estadisticasDocentes.total}</span>
+            </div>
+            <div className="stats-list-row">
+              <span className="stats-list-label">Docentes Activos</span>
+              <span className="stats-list-value stats-list-value--active">{estadisticasDocentes.activos}</span>
+            </div>
+            <div className="stats-list-row">
+              <span className="stats-list-label">Docentes Inactivos</span>
+              <span className="stats-list-value stats-list-value--inactive">{estadisticasDocentes.inactivos}</span>
+            </div>
+            <div className="stats-list-row">
+              <span className="stats-list-label">Promedio Materias/Docentes</span>
+              <span className="stats-list-value stats-list-value--neutral">{estadisticasDocentes.promedioMaterias.toFixed(1)}</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+export default Docentes;
