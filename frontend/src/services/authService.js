@@ -3,26 +3,30 @@ import axios from 'axios';
 /** URL base del módulo de autenticación en el backend (vía proxy de Vite) */
 const AUTH_API_URL = '/api/auth';
 
-/** Usuarios de prueba disponibles solo en modo desarrollo */
+/**
+ * Cuando VITE_USE_MOCK=true en .env.development se usan estos usuarios
+ * locales sin necesidad de levantar el backend.
+ *
+ * Para cambiar de modo editar frontend/.env.development:
+ *   VITE_USE_MOCK=true   → sin backend (mock)
+ *   VITE_USE_MOCK=false  → backend real en localhost:3000
+ */
 const MOCK_USERS = [
-  { correo: 'admin@escuela.edu',           password: 'Admin123!',   nombre: 'Admin Sistema',    tipo_usuario: 'administrativo' },
+  { correo: 'admin@escuela.edu',           password: 'Admin123!',   nombre: 'Carlos Admin',     tipo_usuario: 'administrativo' },
   { correo: 'maria.garcia@escuela.edu',    password: 'Docente123!', nombre: 'María García',      tipo_usuario: 'docente' },
   { correo: 'juan.rodriguez@escuela.edu',  password: 'Padre123!',   nombre: 'Juan Rodríguez',    tipo_usuario: 'padre' },
   { correo: 'laura.martinez@escuela.edu',  password: 'Docente123!', nombre: 'Laura Martínez',    tipo_usuario: 'docente' },
 ];
 
+const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
+
 const authService = {
-  /**
-   * En desarrollo: valida contra MOCK_USERS sin necesidad de backend.
-   * En producción: llama a POST /auth/login.
-   */
   async login(correo, password) {
-    if (import.meta.env.DEV) {
+    if (USE_MOCK) {
       const user = MOCK_USERS.find(
         (u) => u.correo === correo && u.password === password,
       );
       if (!user) {
-        // Simula un 401 para que LoginForm muestre el mensaje correcto
         const err = new Error('Credenciales incorrectas');
         err.response = { status: 401 };
         throw err;

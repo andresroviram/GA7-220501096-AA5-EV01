@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import authService from '../services/authService';
 
-const DEMO_USERS = import.meta.env.DEV
+const DEMO_USERS = import.meta.env.VITE_USE_MOCK === 'true'
   ? [
       { label: 'Administrador', correo: 'admin@escuela.edu',             password: 'Admin123!',   color: '#2A9D6F' },
       { label: 'Docente',       correo: 'maria.garcia@escuela.edu',      password: 'Docente123!', color: '#1976D2' },

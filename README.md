@@ -1,23 +1,36 @@
-# Servicio Web de Inicio de Sesión
+# Sistema Integral Académico
 **Evidencia:** GA7-220501096-AA5-EV01
 
-Sistema de autenticación web desarrollado con **React** (frontend) y **NestJS** (backend),
-que valida usuario y contraseña contra una base de datos SQLite con contraseñas cifradas en bcrypt.
+Sistema de gestión académica desarrollado con **React** (frontend) y **NestJS** (backend).
+Incluye autenticación JWT, gestión de estudiantes, docentes, grupos, materias, calificaciones
+y reportes, con soporte de modo claro/oscuro y sidebar colapsable.
 
 ---
 
 ## Estructura del proyecto
 
 ```
-├── backend/          # API REST con NestJS + TypeORM + SQLite
+├── backend/                        # API REST — NestJS + TypeORM + SQLite
 │   └── src/
-│       ├── auth/     # Módulo de autenticación (login + JWT)
-│       └── users/    # Módulo de usuarios (entidad + servicio)
-├── frontend/         # SPA con React + Vite
+│       ├── auth/                   # Autenticación (login, registro, JWT, logs)
+│       ├── users/                  # Usuarios (entidad, servicio, DTOs)
+│       ├── alumnos/                # Módulo de alumnos
+│       ├── grupos/                 # Módulo de grupos
+│       ├── horarios/               # Módulo de horarios y bloques
+│       ├── materias/               # Módulo de materias
+│       ├── calificaciones/         # Módulo de calificaciones
+│       ├── seed/                   # Datos de demostración (auto-sembrado)
+│       └── main.ts                 # Bootstrap (CORS, validación, Swagger)
+├── frontend/                       # SPA — React 18 + Vite
 │   └── src/
-│       ├── components/   # LoginForm
-│       ├── pages/        # Dashboard (post-login)
-│       └── services/     # authService (llamadas a la API)
+│       ├── components/             # LoginForm, RegisterForm, Topbar, Sidebar, ...
+│       ├── layouts/                # MainLayout (sidebar + topbar)
+│       ├── pages/                  # Dashboard, Estudiantes, Docentes, Grupos,
+│       │                           # Materias, Calificaciones, Reportes, Configuraciones
+│       ├── services/               # authService + servicios por módulo (Axios)
+│       ├── data/                   # Mocks locales (fallback sin backend)
+│       ├── hooks/                  # useTheme (modo claro/oscuro)
+│       └── main.jsx
 └── README.md
 ```
 
@@ -25,12 +38,13 @@ que valida usuario y contraseña contra una base de datos SQLite con contraseña
 
 ## Tecnologías utilizadas
 
-| Capa      | Tecnología                              |
-|-----------|-----------------------------------------|
-| Frontend  | React 18, Vite, Axios                   |
-| Backend   | NestJS 10, TypeORM, Passport, JWT       |
-| Base de datos | SQLite (archivo local `database.sqlite`) |
-| Seguridad | bcrypt (hash de contraseñas), JWT (tokens) |
+| Capa          | Tecnología                                               |
+|---------------|----------------------------------------------------------|
+| Frontend      | React 18, Vite, React Router v7, Recharts, Axios         |
+| Backend       | NestJS 10, TypeORM, Passport, JWT, bcrypt                |
+| Base de datos | SQLite (archivo local `backend/database.sqlite`)         |
+| Seguridad     | bcrypt (hash de contraseñas), JWT Bearer, class-validator|
+| Docs API      | Swagger UI (`/api` del backend)                          |
 
 ---
 
@@ -38,7 +52,6 @@ que valida usuario y contraseña contra una base de datos SQLite con contraseña
 
 - Node.js v18 o superior
 - npm v9 o superior
-- Git
 
 ---
 
@@ -59,13 +72,11 @@ npm install
 npm run start:dev
 ```
 
-El servidor arranca en **http://localhost:3000**
+El servidor arranca en **http://localhost:3000**  
+Swagger UI disponible en **http://localhost:3000/api**
 
-Al iniciar por primera vez, se crea automáticamente un usuario de prueba:
-| Campo    | Valor     |
-|----------|-----------|
-| Usuario  | `admin`   |
-| Contraseña | `Admin123!` |
+Al iniciar por primera vez el **SeedService** crea automáticamente la base de datos
+con datos de demostración (usuarios, alumnos, grupos, materias, calificaciones).
 
 ### 3. Frontend (React)
 
@@ -77,18 +88,59 @@ npm run dev
 
 La aplicación estará disponible en **http://localhost:5173**
 
+> El proxy de Vite redirige `/api/*` → `http://localhost:3000` automáticamente,
+> por lo que no hay problemas de CORS en desarrollo.
+
 ---
 
-## Endpoint de la API
+## Variables de entorno
 
-### POST /auth/login
+### Backend — `backend/.env`
 
-Valida credenciales y retorna un token JWT.
+```env
+JWT_SECRET=tu_secreto_seguro_aqui
+PORT=3000
+```
 
-**Request:**
+### Frontend — `frontend/.env.development`
+
+```env
+# true  → autenticación local sin backend (MOCK_USERS)
+# false → autenticación real contra NestJS en localhost:3000
+VITE_USE_MOCK=false
+```
+
+Con `VITE_USE_MOCK=true` también se muestra la tarjeta de cuentas de prueba
+en la pantalla de login, útil para demos sin servidor.
+
+---
+
+## Cuentas de demostración
+
+Sembradas automáticamente por el SeedService al arrancar el backend por primera vez.
+
+| Correo                          | Contraseña   | Rol              |
+|---------------------------------|--------------|------------------|
+| `admin@escuela.edu`             | `Admin123!`  | Administrativo   |
+| `maria.garcia@escuela.edu`      | `Docente123!`| Docente          |
+| `laura.martinez@escuela.edu`    | `Docente123!`| Docente          |
+| `juan.rodriguez@escuela.edu`    | `Padre123!`  | Padre / Tutor    |
+
+---
+
+## Endpoints principales de la API
+
+### Autenticación
+
+| Método | Ruta             | Descripción                        |
+|--------|------------------|------------------------------------|
+| POST   | `/auth/login`    | Inicio de sesión — retorna JWT     |
+| POST   | `/auth/register` | Registro de nuevo usuario          |
+
+**Request login:**
 ```json
 {
-  "username": "admin",
+  "correo": "admin@escuela.edu",
   "password": "Admin123!"
 }
 ```
@@ -97,7 +149,9 @@ Valida credenciales y retorna un token JWT.
 ```json
 {
   "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "username": "admin"
+  "correo": "admin@escuela.edu",
+  "nombre": "Carlos Admin",
+  "tipo_usuario": "administrativo"
 }
 ```
 
@@ -109,16 +163,18 @@ Valida credenciales y retorna un token JWT.
 }
 ```
 
----
+### Módulos protegidos (requieren `Authorization: Bearer <token>`)
 
-## Variables de entorno (backend)
+| Módulo          | Prefijo           |
+|-----------------|-------------------|
+| Usuarios        | `/usuarios`       |
+| Alumnos         | `/alumnos`        |
+| Grupos          | `/grupos`         |
+| Horarios        | `/horarios`       |
+| Materias        | `/materias`       |
+| Calificaciones  | `/calificaciones` |
 
-Crear un archivo `.env` en la carpeta `backend/` basado en `.env.example`:
-
-```env
-JWT_SECRET=tu_secreto_seguro_aqui
-PORT=3000
-```
+Consultar la documentación completa en **http://localhost:3000/api**
 
 ---
 
@@ -127,30 +183,46 @@ PORT=3000
 ```
 Usuario        Frontend (React)         Backend (NestJS)       Base de datos
   |                  |                        |                      |
-  |--- usuario/pass->|                        |                      |
+  |--- correo/pass-->|                        |                      |
   |                  |-- POST /auth/login ---->|                      |
-  |                  |                        |-- buscar usuario ---->|
+  |                  |                        |-- findByCorreo() ---->|
   |                  |                        |<-- user + hash -------|
   |                  |                        |-- bcrypt.compare()    |
-  |                  |<---- JWT token ---------|                      |
+  |                  |                        |-- log intento ------->|
+  |                  |<---- JWT + perfil ------|                      |
   |<-- Dashboard ----|                        |                      |
 ```
 
 ---
 
+## Funcionalidades del frontend
+
+- **Login / Registro** con validación de formulario y manejo de errores
+- **Dashboard** con estadísticas derivadas de los datos reales: total de estudiantes,
+  docentes activos, materias activas, grupos; top 5 alumnos, promedios por grupo,
+  rendimiento académico y distribución por grado
+- **Gestión de módulos**: Estudiantes, Docentes, Grupos y Horarios, Materias,
+  Calificaciones, Reportes, Configuraciones
+- **Sidebar colapsable** — botón ☰ en la topbar colapsa a modo de solo iconos
+- **Modo claro / oscuro** — toggle en la topbar, persiste en `localStorage`
+- **Modo mock** — controlado por `VITE_USE_MOCK` en `.env.development`,
+  permite desarrollar sin levantar el backend
+
+---
+
 ## Seguridad implementada
 
-- Las contraseñas **nunca se almacenan en texto plano** — se usa bcrypt con salt rounds = 10
-- Los tokens JWT expiran en **1 hora**
-- Se validan los datos de entrada con `class-validator` (DTOs)
-- CORS configurado para aceptar solo el origen del frontend
-- Las credenciales incorrectas retornan un mensaje genérico (no se revela si el usuario existe)
+- Contraseñas almacenadas con **bcrypt** (salt rounds = 10), nunca en texto plano
+- Tokens **JWT** con expiración (configurada en `JWT_SECRET`)
+- Validación de entradas con `class-validator` + `class-transformer` en los DTOs
+- `ValidationPipe` global con `whitelist: true` y `forbidNonWhitelisted: true`
+- **CORS** restringido al origen del frontend (`http://localhost:5173`)
+- Mensajes de error genéricos en login (no revela si el correo existe)
+- Log de intentos de autenticación (exitosos y fallidos) en tabla `autenticacion_log`
 
 ---
 
 ## Versionamiento
-
-Este proyecto usa **Git** para control de versiones. Historial de commits:
 
 ```bash
 git log --oneline

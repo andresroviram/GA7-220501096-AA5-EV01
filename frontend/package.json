@@ -1,7 +1,7 @@
 {
-  "name": "login-frontend",
+  "name": "frontend",
   "version": "1.0.0",
-  "description": "Frontend React para servicio de inicio de sesión - GA7-220501096-AA5-EV01",
+  "description": "Frontend React - GA7-220501096-AA5-EV03",
   "type": "module",
   "scripts": {
     "dev": "vite",
